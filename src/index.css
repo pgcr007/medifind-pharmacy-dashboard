@@ -1,0 +1,62 @@
+@import "tailwindcss";
+
+@theme {
+  --color-paper: #faf7f0;
+  --color-paper-dim: #f1ece1;
+  --color-ink: #1f2a24;
+  --color-ink-soft: #4a564e;
+  --color-bottle: #2c4a3e;
+  --color-bottle-dark: #1d3229;
+  --color-bottle-light: #3d6353;
+  --color-amber: #c08a34;
+  --color-amber-light: #e0b869;
+  --color-sage: #5b7a5e;
+  --color-sage-light: #e7ede8;
+  --color-rust: #a83b32;
+  --color-rust-light: #f3e3e1;
+  --color-hairline: #d9d2c2;
+
+  --font-display: "Zilla Slab", ui-serif, Georgia, serif;
+  --font-body: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+@layer base {
+  html {
+    background-color: var(--color-paper);
+  }
+  body {
+    color: var(--color-ink);
+    font-family: var(--font-body);
+  }
+  ::selection {
+    background-color: var(--color-amber-light);
+    color: var(--color-ink);
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-bottle);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .ledger-card {
+    background-color: white;
+    border: 1px solid var(--color-hairline);
+    border-radius: 4px;
+  }
+
+  .input {
+    width: 100%;
+    border-radius: 4px;
+    border: 1px solid var(--color-hairline);
+    background-color: white;
+    padding: 0.6rem 0.85rem;
+    color: var(--color-ink);
+    outline: none;
+    transition: border-color 0.15s ease;
+  }
+  .input:focus {
+    border-color: var(--color-bottle);
+  }
+}
