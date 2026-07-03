@@ -1,8 +1,12 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Plus, Trash2, Search, X } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import * as api from "../api/endpoints";
 import { PageShell } from "./PharmacyProfilePage";
+import Pagination from "../components/Pagination";
+import { ErrorState, TableSkeleton } from "../components/StateViews";
+
+const PAGE_SIZE = 8;
 
 export default function InventoryPage() {
   const { pharmacy, pharmacyLoading } = useAuth();
@@ -10,6 +14,8 @@ export default function InventoryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showAdd, setShowAdd] = useState(false);
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
 
   const load = useCallback(async () => {
     if (!pharmacy) return;
@@ -19,7 +25,7 @@ export default function InventoryPage() {
       const data = await api.getInventory(pharmacy._id);
       setItems(data);
     } catch {
-      setError("Couldn't load inventory. Try refreshing.");
+      setError("Couldn't load inventory.");
     } finally {
       setLoading(false);
     }
@@ -29,6 +35,26 @@ export default function InventoryPage() {
     load();
   }, [load]);
 
+  const validItems = items.filter((it) => it.medicineId);
+  const brokenCount = items.length - validItems.length;
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return validItems;
+    return validItems.filter(
+      (it) =>
+        it.medicineId.name?.toLowerCase().includes(q) ||
+        it.medicineId.genericName?.toLowerCase().includes(q)
+    );
+  }, [validItems, search]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
+
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
   async function handleUpdate(medicineId, stockQty, price) {
     const updated = await api.upsertInventoryItem(pharmacy._id, {
       medicineId,
@@ -37,7 +63,9 @@ export default function InventoryPage() {
     });
     setItems((prev) =>
       prev.map((it) =>
-        it.medicineId._id === medicineId ? { ...it, stockQty: updated.stockQty, price: updated.price } : it
+        it.medicineId?._id === medicineId
+          ? { ...it, stockQty: updated.stockQty, price: updated.price }
+          : it
       )
     );
   }
@@ -45,13 +73,13 @@ export default function InventoryPage() {
   async function handleDelete(medicineId) {
     if (!confirm("Remove this medicine from your inventory?")) return;
     await api.deleteInventoryItem(pharmacy._id, medicineId);
-    setItems((prev) => prev.filter((it) => it.medicineId._id !== medicineId));
+    setItems((prev) => prev.filter((it) => it.medicineId?._id !== medicineId));
   }
 
   if (pharmacyLoading || !pharmacy) {
     return (
       <PageShell title="Inventory">
-        <p className="text-ink-soft text-sm">Loading…</p>
+        <TableSkeleton cols={4} />
       </PageShell>
     );
   }
@@ -68,41 +96,78 @@ export default function InventoryPage() {
         </button>
       }
     >
-      {error && <p className="text-sm text-rust mb-4">{error}</p>}
+      {brokenCount > 0 && (
+        <div className="rounded border border-amber/40 bg-amber-light/30 px-4 py-3 mb-4 text-sm text-ink">
+          {brokenCount} inventory {brokenCount === 1 ? "entry has" : "entries have"} a
+          missing medicine reference and can't be shown here. Check the{" "}
+          <code className="font-mono text-xs">medicineId</code> field in Atlas.
+        </div>
+      )}
+
+      {!loading && !error && validItems.length > 0 && (
+        <div className="relative mb-4 max-w-xs">
+          <Search
+            size={15}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft"
+          />
+          <input
+            className="input pl-9 py-2 text-sm"
+            placeholder="Search inventory…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+      )}
 
       {loading ? (
-        <p className="text-ink-soft text-sm">Loading inventory…</p>
-      ) : items.length === 0 ? (
+        <TableSkeleton cols={4} />
+      ) : error ? (
+        <ErrorState message={error} onRetry={load} />
+      ) : validItems.length === 0 ? (
         <EmptyState onAdd={() => setShowAdd(true)} />
-      ) : (
-        <div className="ledger-card overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-hairline bg-paper-dim/60 text-left text-xs uppercase tracking-wide text-ink-soft">
-                <th className="px-5 py-3 font-medium">Medicine</th>
-                <th className="px-5 py-3 font-medium w-32">Stock</th>
-                <th className="px-5 py-3 font-medium w-36">Price (₹)</th>
-                <th className="px-5 py-3 font-medium w-16"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item) => (
-                <InventoryRow
-                  key={item._id}
-                  item={item}
-                  onSave={handleUpdate}
-                  onDelete={handleDelete}
-                />
-              ))}
-            </tbody>
-          </table>
+      ) : filtered.length === 0 ? (
+        <div className="ledger-card p-10 text-center">
+          <p className="text-ink font-medium mb-1">No matches for "{search}"</p>
+          <p className="text-ink-soft text-sm">Try a different name.</p>
         </div>
+      ) : (
+        <>
+          <div className="ledger-card overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-hairline bg-paper-dim/60 text-left text-xs uppercase tracking-wide text-ink-soft">
+                  <th className="px-5 py-3 font-medium">Medicine</th>
+                  <th className="px-5 py-3 font-medium w-32">Stock</th>
+                  <th className="px-5 py-3 font-medium w-36">Price (₹)</th>
+                  <th className="px-5 py-3 font-medium w-16"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {pageItems.map((item) => (
+                  <InventoryRow
+                    key={item._id}
+                    item={item}
+                    onSave={handleUpdate}
+                    onDelete={handleDelete}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <Pagination
+            page={page}
+            pageCount={pageCount}
+            onChange={setPage}
+            total={filtered.length}
+            pageSize={PAGE_SIZE}
+          />
+        </>
       )}
 
       {showAdd && (
         <AddMedicineModal
           pharmacyId={pharmacy._id}
-          existingIds={items.map((i) => i.medicineId._id)}
+          existingIds={validItems.map((i) => i.medicineId._id)}
           onClose={() => setShowAdd(false)}
           onAdded={(newItem) => {
             setItems((prev) => [...prev, newItem]);
