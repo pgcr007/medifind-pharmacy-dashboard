@@ -41,7 +41,7 @@ export async function deleteInventoryItem(pharmacyId, medicineId) {
 // ASSUMPTION: GET /medicines?name= per your documented convention
 // ("Medicine search uses ?name= query param, not ?query="). Confirm/adjust if wrong.
 export async function searchMedicines(name) {
-  const { data } = await client.get("/medicines", { params: { name } });
+  const { data } = await client.get("/medicines/search", { params: { name } });
   return data;
 }
 
