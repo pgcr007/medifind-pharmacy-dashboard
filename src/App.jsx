@@ -5,6 +5,7 @@ import DashboardLayout from "./components/DashboardLayout";
 import PharmacyProfilePage from "./pages/PharmacyProfilePage";
 import InventoryPage from "./pages/InventoryPage";
 import ReservationsPage from "./pages/ReservationsPage";
+import ReviewsPage from "./pages/ReviewsPage";
 
 function LoginRoute() {
   const { user } = useAuth();
@@ -22,6 +23,7 @@ export default function App() {
             <Route index element={<PharmacyProfilePage />} />
             <Route path="inventory" element={<InventoryPage />} />
             <Route path="reservations" element={<ReservationsPage />} />
+            <Route path="reviews" element={<ReviewsPage />} />
           </Route>
         </Routes>
       </AuthProvider>

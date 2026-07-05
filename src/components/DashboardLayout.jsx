@@ -1,5 +1,5 @@
 import { NavLink, Outlet, Navigate } from "react-router-dom";
-import { Store, Package, ClipboardList, LogOut } from "lucide-react";
+import { Store, Package, ClipboardList, Star, LogOut } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import logoIcon from "../assets/logo-icon.png";
 
@@ -7,6 +7,7 @@ const navItems = [
   { to: "/", label: "Pharmacy", icon: Store, end: true },
   { to: "/inventory", label: "Inventory", icon: Package },
   { to: "/reservations", label: "Reservations", icon: ClipboardList },
+  { to: "/reviews", label: "Reviews", icon: Star },
 ];
 
 export default function DashboardLayout() {

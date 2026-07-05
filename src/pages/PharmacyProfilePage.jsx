@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { BadgeCheck, ShieldQuestion, Clock } from "lucide-react";
+import { BadgeCheck, ShieldQuestion, Clock, Star  } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import * as api from "../api/endpoints";
 import Toggle from "../components/Toggle";
@@ -62,7 +62,7 @@ export default function PharmacyProfilePage() {
     <PageShell title="Pharmacy">
       <form onSubmit={handleSave} className="max-w-lg space-y-6">
         <div className="ledger-card p-6 space-y-5">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-4">
             {pharmacy.verified ? (
               <span className="inline-flex items-center gap-1.5 text-xs font-medium text-sage">
                 <BadgeCheck size={15} /> Verified
@@ -70,6 +70,12 @@ export default function PharmacyProfilePage() {
             ) : (
               <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber">
                 <ShieldQuestion size={15} /> Pending verification
+              </span>
+            )}
+            {pharmacy.reviewCount > 0 && (
+              <span className="inline-flex items-center gap-1 text-xs font-medium text-ink-soft">
+                <Star size={13} className="fill-amber text-amber" />
+                {pharmacy.averageRating} ({pharmacy.reviewCount})
               </span>
             )}
           </div>

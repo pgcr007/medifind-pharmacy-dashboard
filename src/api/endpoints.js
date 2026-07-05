@@ -55,3 +55,14 @@ export async function updateReservationStatus(reservationId, status) {
   const { data } = await client.put(`/reservations/${reservationId}/status`, { status });
   return data;
 }
+
+// --- Reviews ---
+export async function getPharmacyReviews(pharmacyId) {
+  const { data } = await client.get(`/reviews/pharmacy/${pharmacyId}`);
+  return data;
+}
+
+export async function replyToReview(reviewId, text) {
+  const { data } = await client.put(`/reviews/${reviewId}/reply`, { text });
+  return data;
+}
