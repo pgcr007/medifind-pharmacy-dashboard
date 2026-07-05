@@ -1,7 +1,7 @@
 import { NavLink, Outlet, Navigate } from "react-router-dom";
 import { Store, Package, ClipboardList, LogOut } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import logo from "../assets/logo.png";
+import logoIcon from "../assets/logo-icon.png";
 
 const navItems = [
   { to: "/", label: "Pharmacy", icon: Store, end: true },
@@ -18,7 +18,10 @@ export default function DashboardLayout() {
     <div className="min-h-screen bg-paper flex">
       <aside className="w-60 shrink-0 border-r border-hairline flex flex-col">
         <div className="px-6 py-6 border-b border-hairline">
-          <img src={logo} alt="MediFind AI" className="h-10 w-auto" />
+          <div className="flex items-center gap-2.5">
+            <img src={logoIcon} alt="MediFind AI" className="h-8 w-8" />
+            <div className="font-display text-lg text-ink">MediFind AI</div>
+          </div>
           <div className="text-xs text-ink-soft font-mono mt-1.5">
             Pharmacy Dashboard
           </div>
