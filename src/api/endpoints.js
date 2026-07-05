@@ -66,3 +66,9 @@ export async function replyToReview(reviewId, text) {
   const { data } = await client.put(`/reviews/${reviewId}/reply`, { text });
   return data;
 }
+
+// --- Bulk inventory upload ---
+export async function bulkUpsertInventory(pharmacyId, items) {
+  const { data } = await client.post(`/inventory/${pharmacyId}/bulk`, { items });
+  return data;
+}

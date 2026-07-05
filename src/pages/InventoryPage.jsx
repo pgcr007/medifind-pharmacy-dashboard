@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Plus, Trash2, Search, X } from "lucide-react";
+import { Plus, Trash2, Search, X, Upload } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import * as api from "../api/endpoints";
 import { PageShell } from "./PharmacyProfilePage";
 import Pagination from "../components/Pagination";
 import { ErrorState, TableSkeleton } from "../components/StateViews";
+import Papa from "papaparse";
+
 
 const PAGE_SIZE = 8;
 
@@ -14,6 +16,7 @@ export default function InventoryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showAdd, setShowAdd] = useState(false);
+  const [showBulk, setShowBulk] = useState(false);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
 
@@ -88,12 +91,20 @@ export default function InventoryPage() {
     <PageShell
       title="Inventory"
       action={
-        <button
-          onClick={() => setShowAdd(true)}
-          className="inline-flex items-center gap-1.5 rounded bg-bottle text-paper text-sm font-medium px-4 py-2 hover:bg-bottle-dark transition-colors"
-        >
-          <Plus size={16} /> Add medicine
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowBulk(true)}
+            className="inline-flex items-center gap-1.5 rounded border border-hairline text-ink text-sm font-medium px-4 py-2 hover:bg-paper-dim transition-colors"
+          >
+            <Upload size={16} /> Bulk upload
+          </button>
+          <button
+            onClick={() => setShowAdd(true)}
+            className="inline-flex items-center gap-1.5 rounded bg-bottle text-paper text-sm font-medium px-4 py-2 hover:bg-bottle-dark transition-colors"
+          >
+            <Plus size={16} /> Add medicine
+          </button>
+        </div>
       }
     >
       {brokenCount > 0 && (
@@ -172,6 +183,16 @@ export default function InventoryPage() {
           onAdded={(newItem) => {
             setItems((prev) => [...prev, newItem]);
             setShowAdd(false);
+          }}
+        />
+      )}
+      {showBulk && (
+        <BulkUploadModal
+          pharmacyId={pharmacy._id}
+          onClose={() => setShowBulk(false)}
+          onUploaded={() => {
+            setShowBulk(false);
+            load();
           }}
         />
       )}
@@ -405,6 +426,175 @@ function AddMedicineModal({ pharmacyId, existingIds, onClose, onAdded }) {
             </div>
           </form>
         )}
+      </div>
+    </div>
+  );
+}
+
+
+function BulkUploadModal({ pharmacyId, onClose, onUploaded }) {
+  const [rows, setRows] = useState([]);
+  const [fileName, setFileName] = useState("");
+  const [parseError, setParseError] = useState("");
+  const [uploadError, setUploadError] = useState("");
+  const [unrecognized, setUnrecognized] = useState([]);
+  const [uploading, setUploading] = useState(false);
+
+  function downloadTemplate() {
+    const csvContent =
+      "medicineName,stockQty,price\nParacetamol 500mg,100,25\nAmoxicillin 250mg,50,80\n";
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "medifind_inventory_template.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function handleFile(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    setFileName(file.name);
+    setParseError("");
+    setUploadError("");
+    setUnrecognized([]);
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        const parsed = results.data.map((row) => ({
+          medicineName: (row.medicineName || "").trim(),
+          stockQty: row.stockQty,
+          price: row.price,
+        }));
+        const invalidRow = parsed.find(
+          (r) => !r.medicineName || r.stockQty === "" || r.price === ""
+        );
+        if (invalidRow) {
+          setParseError("Each row needs medicineName, stockQty, and price filled in.");
+          setRows([]);
+          return;
+        }
+        setRows(parsed);
+      },
+      error: () => setParseError("Couldn't read that file. Make sure it's a valid CSV."),
+    });
+  }
+
+  async function handleUpload() {
+    setUploading(true);
+    setUploadError("");
+    setUnrecognized([]);
+    try {
+      await api.bulkUpsertInventory(pharmacyId, rows);
+      onUploaded();
+    } catch (err) {
+      const data = err.response?.data;
+      if (data?.unrecognized) {
+        setUnrecognized(data.unrecognized);
+        setUploadError(data.error);
+      } else {
+        setUploadError(data?.error || "Upload failed. Try again.");
+      }
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-ink/40 flex items-center justify-center z-50 px-4">
+      <div className="ledger-card bg-white w-full max-w-lg p-6 relative">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-ink-soft hover:text-ink"
+          aria-label="Close"
+        >
+          <X size={18} />
+        </button>
+        <h2 className="font-display text-xl text-ink mb-2">Bulk upload inventory</h2>
+        <p className="text-sm text-ink-soft mb-5">
+          Upload a CSV with columns{" "}
+          <code className="font-mono text-xs">medicineName, stockQty, price</code>. Medicines
+          must already exist in MediFind's catalog — unrecognized names will be rejected.
+        </p>
+
+        <button
+          type="button"
+          onClick={downloadTemplate}
+          className="text-sm font-medium text-bottle hover:text-bottle-dark mb-4 inline-block"
+        >
+          Download CSV template
+        </button>
+
+        <label className="block">
+          <span className="block text-xs font-medium uppercase tracking-wide text-ink-soft mb-1.5">
+            CSV file
+          </span>
+          <input type="file" accept=".csv" onChange={handleFile} className="input py-2 text-sm" />
+        </label>
+
+        {parseError && <p className="text-sm text-rust mt-3">{parseError}</p>}
+
+        {rows.length > 0 && !parseError && (
+          <div className="mt-4">
+            <p className="text-sm text-ink mb-2">
+              {fileName} — {rows.length} {rows.length === 1 ? "item" : "items"} ready to upload
+            </p>
+            <div className="border border-hairline rounded max-h-40 overflow-y-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="bg-paper-dim/60 text-left text-ink-soft">
+                    <th className="px-3 py-1.5 font-medium">Medicine</th>
+                    <th className="px-3 py-1.5 font-medium">Stock</th>
+                    <th className="px-3 py-1.5 font-medium">Price</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r, i) => (
+                    <tr key={i} className="border-t border-hairline">
+                      <td className="px-3 py-1.5">{r.medicineName}</td>
+                      <td className="px-3 py-1.5 font-mono">{r.stockQty}</td>
+                      <td className="px-3 py-1.5 font-mono">{r.price}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {uploadError && (
+          <div className="mt-4 rounded border border-rust/40 bg-rust-light/30 px-3.5 py-2.5">
+            <p className="text-sm text-rust">{uploadError}</p>
+            {unrecognized.length > 0 && (
+              <ul className="mt-1.5 text-xs text-rust list-disc list-inside">
+                {unrecognized.map((name) => (
+                  <li key={name}>{name}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
+        <div className="flex gap-2 mt-5">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 rounded border border-hairline text-ink text-sm font-medium py-2 hover:bg-paper-dim transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleUpload}
+            disabled={rows.length === 0 || uploading || !!parseError}
+            className="flex-1 rounded bg-bottle text-paper text-sm font-medium py-2 hover:bg-bottle-dark disabled:opacity-60"
+          >
+            {uploading ? "Uploading…" : `Upload ${rows.length || ""} items`}
+          </button>
+        </div>
       </div>
     </div>
   );
