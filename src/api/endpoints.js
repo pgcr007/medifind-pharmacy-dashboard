@@ -12,6 +12,11 @@ export async function getMyPharmacy() {
   return data;
 }
 
+export async function createPharmacy(details) {
+  const { data } = await client.post("/pharmacies", details);
+  return data;
+}
+
 export async function updatePharmacy(pharmacyId, updates) {
   const { data } = await client.put(`/pharmacies/${pharmacyId}`, updates);
   return data;

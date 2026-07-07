@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import logoIcon from "../assets/logo-icon.png";
 
 const navItems = [
-  { to: "/", label: "Pharmacy", icon: Store, end: true },
+  { to: "/", label: "Pharmacy", icon: Store, end: true, alwaysEnabled: true },
   { to: "/inventory", label: "Inventory", icon: Package },
   { to: "/reservations", label: "Reservations", icon: ClipboardList },
   { to: "/reviews", label: "Reviews", icon: Star },
@@ -14,6 +14,11 @@ export default function DashboardLayout() {
   const { user, pharmacy, pharmacyLoading, logout } = useAuth();
 
   if (!user) return <Navigate to="/login" replace />;
+
+  // Inventory/Reservations/Reviews all require an existing pharmacy._id --
+  // keep them disabled until the one-time pharmacy setup form is completed,
+  // so a brand-new pharmacy owner can't land on a broken/empty page.
+  const hasPharmacy = Boolean(pharmacy);
 
   return (
     <div className="min-h-screen bg-paper flex">
@@ -29,23 +34,40 @@ export default function DashboardLayout() {
         </div>
 
         <nav className="flex-1 px-3 py-4 space-y-1">
-          {navItems.map(({ to, label, icon: Icon, end }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={end}
-              className={({ isActive }) =>
-                `flex items-center gap-2.5 px-3 py-2.5 rounded text-sm font-medium transition-colors ${
-                  isActive
-                    ? "bg-bottle text-paper"
-                    : "text-ink-soft hover:bg-paper-dim hover:text-ink"
-                }`
-              }
-            >
-              <Icon size={17} strokeWidth={2} />
-              {label}
-            </NavLink>
-          ))}
+          {navItems.map(({ to, label, icon: Icon, end, alwaysEnabled }) => {
+            const enabled = alwaysEnabled || hasPharmacy || pharmacyLoading;
+
+            if (!enabled) {
+              return (
+                <div
+                  key={to}
+                  title="Set up your pharmacy first"
+                  className="flex items-center gap-2.5 px-3 py-2.5 rounded text-sm font-medium text-ink-soft/40 cursor-not-allowed select-none"
+                >
+                  <Icon size={17} strokeWidth={2} />
+                  {label}
+                </div>
+              );
+            }
+
+            return (
+              <NavLink
+                key={to}
+                to={to}
+                end={end}
+                className={({ isActive }) =>
+                  `flex items-center gap-2.5 px-3 py-2.5 rounded text-sm font-medium transition-colors ${
+                    isActive
+                      ? "bg-bottle text-paper"
+                      : "text-ink-soft hover:bg-paper-dim hover:text-ink"
+                  }`
+                }
+              >
+                <Icon size={17} strokeWidth={2} />
+                {label}
+              </NavLink>
+            );
+          })}
         </nav>
 
         <div className="px-3 py-4 border-t border-hairline">

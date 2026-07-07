@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
-import { BadgeCheck, ShieldQuestion, Clock, Star  } from "lucide-react";
+import { BadgeCheck, ShieldQuestion, Clock, Star, Store } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import * as api from "../api/endpoints";
 import Toggle from "../components/Toggle";
 
+const EMPTY_FORM = { name: "", address: "", latitude: "", longitude: "", is24Hours: false };
+
 export default function PharmacyProfilePage() {
-  const { pharmacy, pharmacyLoading, pharmacyError, setPharmacy } = useAuth();
+  const { pharmacy, pharmacyLoading, pharmacyError, setPharmacy, reloadPharmacy } = useAuth();
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
@@ -46,14 +48,11 @@ export default function PharmacyProfilePage() {
     );
   }
 
+  // No pharmacy exists yet for this account -- show the one-time setup form
+  // instead of a dead-end error. This is the missing piece: previously
+  // nothing in the app or dashboard ever created this record.
   if (pharmacyError) {
-    return (
-      <PageShell title="Pharmacy">
-        <div className="ledger-card p-6 max-w-lg">
-          <p className="text-rust text-sm">{pharmacyError}</p>
-        </div>
-      </PageShell>
-    );
+    return <CreatePharmacyForm onCreated={reloadPharmacy} />;
   }
 
   if (!form) return null;
@@ -152,6 +151,127 @@ export default function PharmacyProfilePage() {
           {saved && <span className="text-sm text-sage">Saved.</span>}
         </div>
       </form>
+    </PageShell>
+  );
+}
+
+function CreatePharmacyForm({ onCreated }) {
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleCreate(e) {
+    e.preventDefault();
+    setCreating(true);
+    setError("");
+    try {
+      await api.createPharmacy({
+        name: form.name,
+        address: form.address,
+        latitude: Number(form.latitude),
+        longitude: Number(form.longitude),
+        is24Hours: form.is24Hours,
+      });
+      // Re-fetch through the normal auth flow so `pharmacy` and `pharmacyError`
+      // in context update correctly, the same way they do on every other load.
+      await onCreated();
+    } catch (err) {
+      setError(
+        err.response?.data?.error || "Couldn't create your pharmacy. Please check the details and try again."
+      );
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  return (
+    <PageShell title="Set up your pharmacy">
+      <div className="max-w-lg">
+        <div className="ledger-card p-6 mb-6 flex items-start gap-3">
+          <Store size={20} className="text-bottle shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm text-ink font-medium">Welcome! Let's get your pharmacy set up.</p>
+            <p className="text-xs text-ink-soft mt-1">
+              Your account is registered, but you haven't created a pharmacy profile yet.
+              Fill this in once -- an admin will need to verify it before it appears in patient
+              searches, but you can start managing inventory right away.
+            </p>
+          </div>
+        </div>
+
+        <form onSubmit={handleCreate} className="ledger-card p-6 space-y-5">
+          <Field label="Pharmacy name">
+            <input
+              className="input"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              placeholder="e.g. City Pharmacy"
+              required
+            />
+          </Field>
+
+          <Field label="Address">
+            <input
+              className="input"
+              value={form.address}
+              onChange={(e) => setForm({ ...form, address: e.target.value })}
+              placeholder="Street, area, city"
+              required
+            />
+          </Field>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Latitude">
+              <input
+                className="input font-mono text-sm"
+                type="number"
+                step="any"
+                value={form.latitude}
+                onChange={(e) => setForm({ ...form, latitude: e.target.value })}
+                placeholder="19.2403"
+                required
+              />
+            </Field>
+            <Field label="Longitude">
+              <input
+                className="input font-mono text-sm"
+                type="number"
+                step="any"
+                value={form.longitude}
+                onChange={(e) => setForm({ ...form, longitude: e.target.value })}
+                placeholder="73.1305"
+                required
+              />
+            </Field>
+          </div>
+          <p className="text-xs text-ink-soft -mt-2">
+            Tip: search your pharmacy on Google Maps, right-click the pin, and the coordinates
+            are the first thing shown.
+          </p>
+
+          <div className="flex items-center justify-between pt-2 border-t border-hairline">
+            <div className="flex items-center gap-2">
+              <Clock size={16} className="text-ink-soft" />
+              <div className="text-sm font-medium text-ink">Open 24 hours</div>
+            </div>
+            <Toggle
+              checked={form.is24Hours}
+              onChange={(val) => setForm({ ...form, is24Hours: val })}
+              label="Open 24 hours"
+            />
+          </div>
+
+          {error && <p className="text-sm text-rust">{error}</p>}
+
+          <button
+            type="submit"
+            disabled={creating}
+            className="rounded bg-bottle text-paper text-sm font-medium px-5 py-2.5 hover:bg-bottle-dark disabled:opacity-60 transition-colors"
+          >
+            {creating ? "Creating…" : "Create pharmacy"}
+          </button>
+        </form>
+      </div>
     </PageShell>
   );
 }

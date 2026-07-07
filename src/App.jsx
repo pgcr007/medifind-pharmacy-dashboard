@@ -13,6 +13,16 @@ function LoginRoute() {
   return <LoginPage />;
 }
 
+// These pages all assume pharmacy._id is already available. If someone
+// types the URL directly (rather than clicking a disabled nav item),
+// send them back to "/" where the pharmacy setup form lives.
+function RequiresPharmacy({ children }) {
+  const { pharmacy, pharmacyLoading, pharmacyError } = useAuth();
+  if (pharmacyLoading) return null;
+  if (!pharmacy && pharmacyError) return <Navigate to="/" replace />;
+  return children;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -21,9 +31,30 @@ export default function App() {
           <Route path="/login" element={<LoginRoute />} />
           <Route path="/" element={<DashboardLayout />}>
             <Route index element={<PharmacyProfilePage />} />
-            <Route path="inventory" element={<InventoryPage />} />
-            <Route path="reservations" element={<ReservationsPage />} />
-            <Route path="reviews" element={<ReviewsPage />} />
+            <Route
+              path="inventory"
+              element={
+                <RequiresPharmacy>
+                  <InventoryPage />
+                </RequiresPharmacy>
+              }
+            />
+            <Route
+              path="reservations"
+              element={
+                <RequiresPharmacy>
+                  <ReservationsPage />
+                </RequiresPharmacy>
+              }
+            />
+            <Route
+              path="reviews"
+              element={
+                <RequiresPharmacy>
+                  <ReviewsPage />
+                </RequiresPharmacy>
+              }
+            />
           </Route>
         </Routes>
       </AuthProvider>
