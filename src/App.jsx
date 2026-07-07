@@ -17,9 +17,9 @@ function LoginRoute() {
 // types the URL directly (rather than clicking a disabled nav item),
 // send them back to "/" where the pharmacy setup form lives.
 function RequiresPharmacy({ children }) {
-  const { pharmacy, pharmacyLoading, pharmacyError } = useAuth();
+  const { pharmacy, pharmacyLoading, pharmacyNotFound } = useAuth();
   if (pharmacyLoading) return null;
-  if (!pharmacy && pharmacyError) return <Navigate to="/" replace />;
+  if (!pharmacy && pharmacyNotFound) return <Navigate to="/" replace />;
   return children;
 }
 

@@ -11,19 +11,25 @@ export function AuthProvider({ children }) {
   const [pharmacy, setPharmacy] = useState(null);
   const [pharmacyLoading, setPharmacyLoading] = useState(false);
   const [pharmacyError, setPharmacyError] = useState(null);
+  const [pharmacyNotFound, setPharmacyNotFound] = useState(false);
 
   const loadPharmacy = useCallback(async () => {
     setPharmacyLoading(true);
     setPharmacyError(null);
+    setPharmacyNotFound(false);
     try {
       const p = await api.getMyPharmacy();
       setPharmacy(p);
     } catch (err) {
-      setPharmacyError(
-        err.response?.status === 404
-          ? "No pharmacy is registered to this account yet."
-          : "Couldn't load your pharmacy. Try refreshing."
-      );
+      const status = err.response?.status;
+      if (status === 404) {
+        setPharmacyNotFound(true);
+        setPharmacyError("No pharmacy is registered to this account yet.");
+      } else if (status === 403) {
+        setPharmacyError("This account isn't authorized to access pharmacy data.");
+      } else {
+        setPharmacyError("Couldn't load your pharmacy. Try refreshing.");
+      }
     } finally {
       setPharmacyLoading(false);
     }
@@ -35,6 +41,11 @@ export function AuthProvider({ children }) {
 
   const login = useCallback(async (email, password) => {
     const { token, user: loggedInUser } = await api.login(email, password);
+    if (loggedInUser.role !== "pharmacy") {
+      const err = new Error("This dashboard is for pharmacy accounts only.");
+      err.isWrongRole = true;
+      throw err;
+    }
     localStorage.setItem("medifind_token", token);
     localStorage.setItem("medifind_user", JSON.stringify(loggedInUser));
     setUser(loggedInUser);
@@ -55,6 +66,7 @@ export function AuthProvider({ children }) {
         pharmacy,
         pharmacyLoading,
         pharmacyError,
+        pharmacyNotFound,
         setPharmacy,
         reloadPharmacy: loadPharmacy,
         login,

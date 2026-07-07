@@ -7,7 +7,7 @@ import Toggle from "../components/Toggle";
 const EMPTY_FORM = { name: "", address: "", latitude: "", longitude: "", is24Hours: false };
 
 export default function PharmacyProfilePage() {
-  const { pharmacy, pharmacyLoading, pharmacyError, setPharmacy, reloadPharmacy } = useAuth();
+  const { pharmacy, pharmacyLoading, pharmacyError, pharmacyNotFound, setPharmacy, reloadPharmacy } = useAuth();
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
@@ -51,8 +51,16 @@ export default function PharmacyProfilePage() {
   // No pharmacy exists yet for this account -- show the one-time setup form
   // instead of a dead-end error. This is the missing piece: previously
   // nothing in the app or dashboard ever created this record.
-  if (pharmacyError) {
+  if (pharmacyNotFound) {
     return <CreatePharmacyForm onCreated={reloadPharmacy} />;
+  }
+
+  if (pharmacyError) {
+    return (
+      <PageShell title="Pharmacy">
+        <p className="text-sm text-rust">{pharmacyError}</p>
+      </PageShell>
+    );
   }
 
   if (!form) return null;

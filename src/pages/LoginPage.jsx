@@ -15,19 +15,18 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      const user = await login(email, password);
-      if (user.role !== "pharmacy") {
-        setError("This dashboard is for pharmacy accounts only.");
-        setLoading(false);
-        return;
-      }
+      await login(email, password);
       navigate("/");
     } catch (err) {
-      const status = err.response?.status;
-      if (status === 401 || status === 400) {
-        setError("Email or password is incorrect.");
+      if (err.isWrongRole) {
+        setError(err.message);
       } else {
-        setError("Couldn't reach the server. It may be waking up — try again in a moment.");
+        const status = err.response?.status;
+        if (status === 401 || status === 400) {
+          setError("Email or password is incorrect.");
+        } else {
+          setError("Couldn't reach the server. It may be waking up — try again in a moment.");
+        }
       }
       setLoading(false);
     }
